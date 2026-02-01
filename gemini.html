@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rixi AI - Full Stack</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-color: #0f1012;
+            --sidebar-color: #18191b;
+            --surface-color: #242628;
+            --input-bg: #1e1f21;
+            --text-primary: #ededed;
+            --text-secondary: #9b9b9b;
+            --rixi-gradient: linear-gradient(90deg, #b983ff, #94b3fd);
+            --accent-color: #94b3fd;
+            --error-color: #ff6b6b;
+            --success-color: #51cf66;
+            --border-radius: 12px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-primary); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* Utilities */
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Toast */
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        .toast { background: var(--surface-color); color: var(--text-primary); padding: 12px 24px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-left: 4px solid var(--accent-color); display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Auth */
+        .auth-wrapper { display: flex; justify-content: center; align-items: center; height: 100vh; background: radial-gradient(circle at 50% 0%, #2a2a35 0%, #0f1012 70%); position: relative; overflow: hidden; }
+        .auth-card { background: rgba(24, 25, 27, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); padding: 2.5rem; border-radius: 24px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); z-index: 10; }
+        .logo-text { font-family: 'Space Grotesk', sans-serif; font-size: 2rem; background: var(--rixi-gradient); --webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; letter-spacing: -1px; }
+        .auth-subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; }
+        .input-group { text-align: left; margin-bottom: 1.2rem; position: relative; }
+        .input-group label { display: block; color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.4rem; margin-left: 4px; }
+        .input-group input { width: 100%; padding: 12px 16px; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 1rem; transition: var(--transition); }
+        .input-group input:focus { outline: none; border-color: #94b3fd; box-shadow: 0 0 0 3px rgba(148, 179, 253, 0.15); }
+        .btn-primary { width: 100%; padding: 12px; border: none; border-radius: 25px; background: var(--text-primary); color: black; font-weight: 600; font-size: 1rem; cursor: pointer; transition: var(--transition); margin-top: 1rem; }
+        .btn-primary:hover { background: #ffffff; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1); }
+        .auth-switch { margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary); }
+        .auth-switch span { color: #94b3fd; cursor: pointer; font-weight: 500; }
+        .auth-switch span:hover { text-decoration: underline; }
+
+        /* Chat Interface */
+        #app-interface { display: flex; height: 100vh; width: 100vw; }
+        .sidebar { width: 260px; background-color: var(--sidebar-color); display: flex; flex-direction: column; padding: 1rem; transition: var(--transition); border-right: 1px solid rgba(255,255,255,0.05); }
+        .new-chat-btn { background: var(--surface-color); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; transition: var(--transition); margin-bottom: 1.5rem; }
+        .new-chat-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .history-list { flex: 1; overflow-y: auto; }
+        .history-item { padding: 10px 14px; border-radius: 18px; color: var(--text-primary); font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item:hover { background: rgba(255,255,255,0.05); }
+        .user-mini-profile { margin-top: auto; padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-radius: 12px; }
+        .user-mini-profile:hover { background: rgba(255,255,255,0.05); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--rixi-gradient); display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.8rem; color: #131314; }
+
+        .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; background: var(--bg-color); }
+        .top-bar { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); }
+        .model-select { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; color: var(--text-primary); cursor: pointer; font-family: 'Space Grotesk', sans-serif; }
+        .messages-container { flex: 1; overflow-y: auto; padding: 2rem 15%; display: flex; flex-direction: column; gap: 2rem; scroll-behavior: smooth; }
+        .welcome-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; opacity: 1; transition: opacity 0.3s; }
+        .welcome-logo { font-size: 4rem; background: var(--rixi-gradient); --webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; font-family: 'Space Grotesk', sans-serif; }
+        .suggestion-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 3rem; max-width: 600px; width: 100%; }
+        .suggestion-card { background: var(--surface-color); padding: 15px; border-radius: 12px; cursor: pointer; text-align: left; font-size: 0.9rem; color: var(--text-secondary); transition: var(--transition); }
+        .suggestion-card:hover { background: rgba(255,255,255,0.1); }
+
+        .message { display: flex; gap: 16px; line-height: 1.6; opacity: 0; animation: fadeIn 0.5s forwards; }
+        .message.user { flex-direction: row-reverse; }
+        .message-icon { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .bot-icon { background: var(--rixi-gradient); color: black; }
+        .message-content { max-width: 80%; padding-top: 4px; }
+        .user .message-content { background: #2e2f30; padding: 10px 16px; border-radius: 18px 4px 18px 18px; }
+
+        .input-wrapper { padding: 1.5rem 15% 2rem 15%; background: var(--bg-color); position: relative; }
+        .input-box { background: var(--input-bg); border-radius: 25px; padding: 10px 15px; display: flex; align-items: flex-end; gap: 10px; border: 1px solid transparent; transition: var(--transition); }
+        .input-box:focus-within { background: #282a2c; border-color: rgba(255,255,255,0.2); }
+        textarea { flex: 1; background: transparent; border: none; color: white; font-size: 1rem; resize: none; height: 24px; max-height: 150px; padding: 4px 0; overflow-y: hidden; }
+        textarea:focus { outline: none; }
+        .action-btn { color: var(--text-secondary); background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%; transition: var(--transition); }
+        .action-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        .send-btn { color: white; background: transparent; }
+        .send-btn.active { color: #94b3fd; }
+
+        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background-color: var(--text-secondary); border-radius: 50%; animation: typing 1.4s infinite both; margin: 0 2px; }
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .modal-content { background: var(--surface-color); padding: 2rem; border-radius: 16px; width: 90%; max-width: 500px; position: relative; border: 1px solid rgba(255,255,255,0.1); }
+        .close-modal { position: absolute; top: 15px; right: 15px; cursor: pointer; font-size: 1.2rem; color: var(--text-secondary); }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -260px; height: 100%; z-index: 100; background: var(--bg-color); }
+            .sidebar.open { left: 0; }
+            .messages-container, .input-wrapper { padding-left: 5%; padding-right: 5%; }
+            .suggestion-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div id="api-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" onclick="toggleApiModal()">&times;</span>
+            <h2 style="margin-bottom: 10px; font-family: 'Space Grotesk';">Supercharge Rixi ⚡</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 15px; font-size: 0.9rem; line-height: 1.5;">Enter your Rixi API key below to enable AI answers.</p>
+            <input type="password" id="api-key-input" placeholder="Paste Rixi API Key here" 
+                style="width: 100%; padding: 12px; background: var(--bg-color); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; margin-bottom: 15px;">
+            <button class="btn-primary" onclick="saveApiKey()">Save Key & Enable AI</button>
+        </div>
+    </div>
+
+    <div id="auth-view" class="auth-wrapper">
+        <div id="login-form" class="auth-card fade-in">
+            <div class="logo-text"><i class="fa-solid fa-atom"></i> Rixi</div>
+            <div class="auth-subtitle">Sign in to continue</div>
+            <form onsubmit="handleLogin(event)">
+                <div class="input-group"><label>Email</label><input type="email" id="login-email" placeholder="user@example.com" required></div>
+                <div class="input-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••" required></div>
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
+            <div class="auth-switch">Don't have an account? <span onclick="toggleAuth('register')">Sign Up</span></div>
+        </div>
+
+        <div id="register-form" class="auth-card hidden">
+            <div class="logo-text"><i class="fa-solid fa-atom"></i> Rixi</div>
+            <div class="auth-subtitle">Create your account</div>
+            <form onsubmit="handleRegister(event)">
+                <div class="input-group"><label>Full Name</label><input type="text" id="reg-name" placeholder="John Doe" required></div>
+                <div class="input-group"><label>Email</label><input type="email" id="reg-email" placeholder="user@example.com" required></div>
+                <div class="input-group"><label>Password</label><input type="password" id="reg-password" placeholder="Create a password" required></div>
+                <button type="submit" class="btn-primary">Create Account</button>
+            </form>
+            <div class="auth-switch">Already have an account? <span onclick="toggleAuth('login')">Sign In</span></div>
+        </div>
+    </div>
+
+    <div id="chat-view" class="hidden">
+        <div id="app-interface">
+            <div class="sidebar" id="sidebar">
+                <div class="new-chat-btn" onclick="startNewChat()">
+                    <i class="fa-solid fa-plus"></i> New Chat
+                </div>
+                <div class="history-list">
+                    <div class="history-title" style="font-size:0.8rem; margin-bottom:10px; color:var(--text-secondary);">Recent</div>
+                    <div class="history-item active"><i class="fa-regular fa-message"></i> Welcome Chat</div>
+                </div>
+                <div class="user-mini-profile" onclick="handleLogout()">
+                    <div class="user-avatar" id="user-avatar-initial">U</div>
+                    <div style="font-size: 0.9rem;" id="user-name-display">User</div>
+                    <i class="fa-solid fa-arrow-right-from-bracket" style="margin-left: auto; color: var(--error-color);"></i>
+                </div>
+            </div>
+
+            <div class="chat-area">
+                <div class="top-bar">
+                    <div class="model-select" onclick="toggleApiModal()">Rixi Pro <i class="fa-solid fa-bolt" style="color: #ffd700; font-size: 0.9rem;"></i></div>
+                    <div style="cursor:pointer;" onclick="toggleApiModal()"><i class="fa-solid fa-gear"></i></div>
+                </div>
+
+                <div id="welcome-screen" class="welcome-screen">
+                    <div class="welcome-logo"><i class="fa-solid fa-atom"></i></div>
+                    <h2 style="font-weight: 500;">Hello, <span id="welcome-name" style="background: var(--rixi-gradient); --webkit-background-clip:text; -webkit-text-fill-color:transparent;">Explorer</span></h2>
+                    <h3 style="color: var(--text-secondary); font-weight: 400; margin-top: 10px;">How can Rixi help you today?</h3>
+                    <div class="suggestion-grid">
+                        <div class="suggestion-card" onclick="sendSuggestion('Explain quantum physics like I am 5')">Explain quantum physics like I am 5</div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Write a python script to scrape a website')">Write a python script to scrape a website</div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Give me a recipe for chocolate cake')">Give me a recipe for chocolate cake</div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Draft a professional email for sick leave')">Draft a professional email for sick leave</div>
+                    </div>
+                </div>
+
+                <div id="messages-container" class="messages-container hidden"></div>
+
+                <div class="input-wrapper">
+                    <div class="input-box">
+                        <button class="action-btn"><i class="fa-solid fa-circle-plus"></i></button>
+                        <textarea id="message-input" placeholder="Message Rixi..." rows="1"></textarea>
+                        <button class="action-btn"><i class="fa-solid fa-microphone"></i></button>
+                        <button class="action-btn send-btn" id="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* --- STATE MANAGEMENT --- */
+        const state = {
+            currentUser: null,
+            currentChatHistory: [],
+            apiKey: localStorage.getItem('rixi_api_key') || ''
+        };
+
+        /* --- DOM ELEMENTS --- */
+        const views = { 
+            auth: document.getElementById('auth-view'), 
+            chat: document.getElementById('chat-view') 
+        };
+        
+        const chatUI = {
+            welcome: document.getElementById('welcome-screen'),
+            container: document.getElementById('messages-container'),
+            input: document.getElementById('message-input'),
+            sendBtn: document.getElementById('send-btn'),
+            historyList: document.querySelector('.history-list')
+        };
+
+        /* --- AUTHENTICATION --- */
+        function toggleAuth(view) {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById(view + '-form').classList.remove('hidden');
+            document.getElementById(view + '-form').classList.add('fade-in');
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+
+            try {
+                const res = await fetch('http://localhost:3000/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Account created! Please sign in.", "success");
+                    toggleAuth('login');
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) { showToast("Server error: " + err.message, "error"); }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('http://localhost:3000/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Success! Save user and switch view
+                    state.currentUser = data.user;
+                    sessionStorage.setItem('rixi_current_user', JSON.stringify(data.user));
+                    
+                    updateUserUI();
+                    loadChatHistory(); // Load sidebar chats
+                    
+                    views.auth.classList.add('hidden');
+                    views.chat.classList.remove('hidden');
+                    showToast(`Welcome back, ${data.user.name}!`, 'success');
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) { showToast("Server error: " + err.message, "error"); }
+        }
+
+        function handleLogout() {
+            state.currentUser = null;
+            sessionStorage.removeItem('rixi_current_user');
+            location.reload();
+        }
+
+        function updateUserUI() {
+            if(!state.currentUser) return;
+            document.getElementById('user-name-display').textContent = state.currentUser.name;
+            document.getElementById('welcome-name').textContent = state.currentUser.name.split(' ')[0];
+            document.getElementById('user-avatar-initial').textContent = state.currentUser.name[0].toUpperCase();
+        }
+
+        /* --- HISTORY & SIDEBAR --- */
+        async function loadChatHistory() {
+            if (!state.currentUser) return;
+
+            try {
+                const res = await fetch(`http://localhost:3000/chats/${state.currentUser.id}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    // Reset sidebar but keep the title
+                    chatUI.historyList.innerHTML = '<div class="history-title" style="font-size:0.8rem; margin-bottom:10px; color:var(--text-secondary);">Recent</div>';
+                    
+                    data.chats.forEach(chat => {
+                        const item = document.createElement('div');
+                        item.className = 'history-item';
+                        item.innerHTML = `<i class="fa-regular fa-message"></i> ${chat.chat_title}`;
+                        
+                        // EVENT: When user clicks a sidebar item
+                        item.onclick = (e) => {
+                            // Highlight selected item
+                            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+                            e.currentTarget.classList.add('active');
+                            // Open the chat
+                            openSavedChat(chat);
+                        };
+
+                        chatUI.historyList.appendChild(item);
+                    });
+                }
+            } catch (err) { console.error("Failed to load history"); }
+        }
+
+        function openSavedChat(chat) {
+            // 1. Parse content
+            let messages = [];
+            try {
+                messages = typeof chat.chat_content === 'string' 
+                    ? JSON.parse(chat.chat_content) 
+                    : chat.chat_content;
+            } catch (error) { console.error("Error parsing chat", error); return; }
+
+            // 2. Update state and clear screen
+            state.currentChatHistory = messages;
+            chatUI.container.innerHTML = '';
+            chatUI.welcome.classList.add('hidden');
+            chatUI.container.classList.remove('hidden');
+
+            // 3. Render old messages
+            messages.forEach(msg => {
+                renderMessageBubble(msg.role, msg.text);
+            });
+        }
+
+        /* --- CHAT LOGIC --- */
+        async function startNewChat() {
+            // Save current chat if it exists
+            if (state.currentUser && state.currentChatHistory.length > 0) {
+                const firstUserMsg = state.currentChatHistory.find(m => m.role === 'user');
+                const title = firstUserMsg ? firstUserMsg.text.substring(0, 30) + "..." : "New Chat";
+                
+                try {
+                    await fetch('http://localhost:3000/save-chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: state.currentUser.id, title, chatContent: state.currentChatHistory })
+                    });
+                    showToast("Chat saved to history!", "success");
+                    loadChatHistory(); // Refresh sidebar
+                } catch { console.error("Save failed"); }
+            }
+            
+            // Reset UI for new chat
+            state.currentChatHistory = [];
+            chatUI.container.innerHTML = '';
+            chatUI.welcome.classList.remove('hidden');
+            chatUI.container.classList.add('hidden');
+            
+            // Remove active highlight from sidebar
+            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+        }
+
+        async function sendMessage() {
+            const text = chatUI.input.value.trim();
+            if (!text) return;
+
+            // UI Updates
+            chatUI.welcome.classList.add('hidden');
+            chatUI.container.classList.remove('hidden');
+            chatUI.input.value = '';
+            chatUI.input.style.height = '24px';
+            chatUI.sendBtn.classList.remove('active');
+
+            // 1. Render User Message
+            state.currentChatHistory.push({ role: 'user', text: text });
+            renderMessageBubble('user', text);
+
+            showTypingIndicator();
+
+            // 2. Get AI Response
+            let response;
+            if (state.apiKey) response = await callRixiAPI(text);
+            else {
+                await new Promise(r => setTimeout(r, 1000)); // Fake delay
+                response = "I'm in Demo Mode. To get real answers, click the settings gear ⚙️ and add a key!";
+            }
+
+            removeTypingIndicator();
+            
+            // 3. Render Bot Response
+            state.currentChatHistory.push({ role: 'bot', text: response });
+            renderMessageBubble('bot', response);
+        }
+
+        /* --- RIXI API --- */
+        async function callRixiAPI(prompt) {
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.apiKey}`;
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            } catch (error) { return "API Error: " + error.message; }
+        }
+
+        /* --- UI HELPERS --- */
+        function renderMessageBubble(role, text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            
+            const iconHtml = role === 'bot' 
+                ? `<div class="message-icon bot-icon"><i class="fa-solid fa-atom"></i></div>`
+                : `<div class="message-icon user-avatar" style="width:32px;height:32px;font-size:12px;">${state.currentUser.name[0].toUpperCase()}</div>`;
+
+            // Simple formatting
+            let formattedText = text
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/```([\s\S]*?)```/g, '<pre style="background:#111; padding:10px; border-radius:8px;"><code>$1</code></pre>')
+                .replace(/\n/g, '<br>');
+
+            msgDiv.innerHTML = `${iconHtml}<div class="message-content">${formattedText}</div>`;
+            chatUI.container.appendChild(msgDiv);
+            chatUI.container.scrollTop = chatUI.container.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const div = document.createElement('div');
+            div.className = 'message bot';
+            div.id = 'typing-indicator';
+            div.innerHTML = `<div class="message-icon bot-icon"><i class="fa-solid fa-atom"></i></div><div class="message-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+            chatUI.container.appendChild(div);
+            chatUI.container.scrollTop = chatUI.container.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        function toggleApiModal() {
+            document.getElementById('api-modal').classList.toggle('hidden');
+            document.getElementById('api-key-input').value = state.apiKey;
+        }
+
+        function saveApiKey() {
+            state.apiKey = document.getElementById('api-key-input').value.trim();
+            localStorage.setItem('rixi_api_key', state.apiKey);
+            toggleApiModal();
+            showToast("API Key saved!", "success");
+        }
+
+        function sendSuggestion(text) { chatUI.input.value = text; sendMessage(); }
+        
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeftColor = type === 'error' ? '#ff6b6b' : '#51cf66';
+            toast.innerHTML = (type === 'error' ? '<i class="fa-solid fa-circle-exclamation" style="color:#ff6b6b"></i>' : '<i class="fa-solid fa-circle-check" style="color:#51cf66"></i>') + `<span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        /* --- EVENTS & INIT --- */
+        chatUI.input.addEventListener('input', function() {
+            this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';
+            this.value.trim().length > 0 ? chatUI.sendBtn.classList.add('active') : chatUI.sendBtn.classList.remove('active');
+        });
+        
+        chatUI.input.addEventListener('keypress', function(e) { 
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                sendMessage(); 
+            } 
+        });
+
+        // On Page Load: Check if user is already logged in
+        window.onload = () => {
+            const savedUser = sessionStorage.getItem('rixi_current_user');
+            if (savedUser) {
+                state.currentUser = JSON.parse(savedUser);
+                updateUserUI();
+                loadChatHistory(); // Load chats
+                views.auth.classList.add('hidden');
+                views.chat.classList.remove('hidden');
+            }
+        };
+    </script>
+</body>
+</html>

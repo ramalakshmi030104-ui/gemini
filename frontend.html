@@ -1,0 +1,104 @@
+/* File: gemini.html (Script Section)
+   Description: Client-side logic for UI updates and API calls.
+*/
+
+// --- STATE MANAGEMENT ---
+const state = {
+    currentUser: null,
+    currentChatHistory: [],
+    apiKey: localStorage.getItem('rixi_api_key') || ''
+};
+
+// --- AUTHENTICATION LOGIC ---
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    try {
+        const res = await fetch('http://localhost:3000/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Success: Save user to session and load UI
+            state.currentUser = data.user;
+            sessionStorage.setItem('rixi_current_user', JSON.stringify(data.user));
+            updateUserUI();
+            loadChatHistory();
+            
+            // Toggle Views
+            document.getElementById('auth-view').classList.add('hidden');
+            document.getElementById('chat-view').classList.remove('hidden');
+            showToast(`Welcome back, ${data.user.name}!`, 'success');
+        } else {
+            showToast(data.message, "error");
+        }
+    } catch (err) { 
+        showToast("Server connection failed.", "error"); 
+    }
+}
+
+// --- AI INTEGRATION LOGIC ---
+async function callRixiAPI(prompt) {
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${state.apiKey}`;
+    
+    try {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+        const data = await response.json();
+        
+        // Return the generated text from Gemini
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) { 
+        return "Error: Could not reach AI service. Check your API Key."; 
+    }
+}
+
+// --- UI RENDERING LOGIC ---
+function renderMessageBubble(role, text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}`;
+    
+    // Basic Markdown Parsing for Bold and Code Blocks
+    let formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+        .replace(/```([\s\S]*?)```/g, '<pre style="background:#111; padding:10px;"><code>$1</code></pre>')
+        .replace(/\n/g, '<br>');
+
+    const iconHtml = role === 'bot' 
+        ? `<div class="message-icon bot-icon"><i class="fa-solid fa-atom"></i></div>`
+        : `<div class="message-icon user-avatar">U</div>`;
+
+    msgDiv.innerHTML = `${iconHtml}<div class="message-content">${formattedText}</div>`;
+    
+    const container = document.getElementById('messages-container');
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight; // Auto-scroll to bottom
+}
+
+async function sendMessage() {
+    const input = document.getElementById('message-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    // 1. Show User Message
+    state.currentChatHistory.push({ role: 'user', text: text });
+    renderMessageBubble('user', text);
+    input.value = '';
+
+    // 2. Show AI Response
+    const response = await callRixiAPI(text);
+    state.currentChatHistory.push({ role: 'bot', text: response });
+    renderMessageBubble('bot', response);
+    
+    // 3. Auto-Save Chat to Database
+    if (state.currentUser) {
+        // (Code to call /save-chat endpoint would go here)
+    }
+}

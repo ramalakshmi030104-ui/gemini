@@ -1,0 +1,113 @@
+/* File: server.js
+   Description: Main backend entry point. Handles API routing and DB connections.
+*/
+
+const express = require('express');
+const mysql = require('mysql2');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+
+const app = express();
+
+// --- MIDDLEWARE CONFIGURATION ---
+// CORS allows the browser to send data to this server
+app.use(cors());
+// BodyParser allows us to read JSON data sent in POST requests
+app.use(bodyParser.json());
+
+// --- DATABASE CONNECTION ---
+// Creates a connection pool to the local MySQL instance
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',      
+    password: '',  // Default password for XAMPP/WAMP
+    database: 'rixi_db'
+});
+
+// Initialize Connection
+db.connect(err => {
+    if (err) {
+        console.error('[Error] DB Connection Failed:', err);
+    } else {
+        console.log('[Success] Connected to MySQL Database');
+    }
+});
+
+// --- API ROUTES ---
+
+/**
+ * Route: /register
+ * Method: POST
+ * Description: Creates a new user account in the database.
+ */
+app.post('/register', (req, res) => {
+    const { name, email, password } = req.body;
+    
+    const query = 'INSERT INTO users (name, email, password) VALUES (?, ?, ?)';
+    db.query(query, [name, email, password], (err) => {
+        if (err) {
+            // Return error if email already exists (Unique Constraint)
+            return res.json({ success: false, message: 'Email already exists' });
+        }
+        res.json({ success: true });
+    });
+});
+
+/**
+ * Route: /login
+ * Method: POST
+ * Description: Verifies user credentials against the database.
+ */
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+    
+    const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
+    db.query(query, [email, password], (err, results) => {
+        if (results.length > 0) {
+            const user = results[0];
+            // Send back the user profile (excluding password for security)
+            res.json({ 
+                success: true, 
+                user: { id: user.id, name: user.name, email: user.email } 
+            });
+        } else {
+            res.json({ success: false, message: 'Invalid credentials' });
+        }
+    });
+});
+
+/**
+ * Route: /save-chat
+ * Method: POST
+ * Description: Saves the current conversation context to the database.
+ */
+app.post('/save-chat', (req, res) => {
+    const { userId, title, chatContent } = req.body;
+    
+    // 'JSON.stringify' converts the chat array into a string for storage
+    const query = 'INSERT INTO chats (user_id, chat_title, chat_content) VALUES (?, ?, ?)';
+    db.query(query, [userId, title, JSON.stringify(chatContent)], (err) => {
+        if (err) return res.json({ success: false });
+        res.json({ success: true });
+    });
+});
+
+/**
+ * Route: /chats/:userId
+ * Method: GET
+ * Description: Retrieves chat history for the sidebar.
+ */
+app.get('/chats/:userId', (req, res) => {
+    const userId = req.params.userId;
+    
+    // Selects ID, Title, and Content ordered by newest first
+    const sql = 'SELECT id, chat_title, chat_content FROM chats WHERE user_id = ? ORDER BY created_at DESC';
+    db.query(sql, [userId], (err, results) => {
+        if (err) return res.json({ success: false, error: err });
+        res.json({ success: true, chats: results });
+    });
+});
+
+// --- SERVER INITIALIZATION ---
+const PORT = 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
